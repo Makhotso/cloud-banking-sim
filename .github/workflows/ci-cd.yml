@@ -21,6 +21,11 @@ jobs:
       - name: Terraform Init
         run: terraform -chdir=iac/terraform init
 
+      - name: Clean old Terraform state
+        run: |
+          rm -rf iac/terraform/.terraform
+          docker system prune -af
+
       - name: Terraform Plan
         run: terraform -chdir=iac/terraform plan
 
