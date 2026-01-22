@@ -1,0 +1,16 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'fastapi'
+    static_configs:
+      - targets: ['fastapi:8000']
+
+  - job_name: 'kong'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['kong:8001']
+
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongodb:9216']  # if using MongoDB exporter
