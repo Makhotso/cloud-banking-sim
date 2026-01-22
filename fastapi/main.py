@@ -1,8 +1,12 @@
 from fastapi import FastAPI
 from pymongo import MongoClient
 from minio import Minio
+from prometheus_fastapi_instrumentator import Instrumentator  # Prometheus import
 
 app = FastAPI(title="Cloud Banking Simulation API")
+
+# --- Prometheus Metrics ---
+Instrumentator().instrument(app).expose(app)  # Exposes /metrics endpoint
 
 # MongoDB Connection
 mongo_client = MongoClient("mongodb://mongodb:27017")
