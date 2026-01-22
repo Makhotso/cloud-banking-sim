@@ -1,33 +1,25 @@
-name: Terraform CI/CD Pipeline
+name: IaC & Backend CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
+  pull_request:
 
 jobs:
   terraform:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Terraform
+      - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.14.3
 
       - name: Terraform Init
         run: terraform -chdir=iac/terraform init
 
-      - name: Clean old Terraform state
-        run: |
-          rm -rf iac/terraform/.terraform
-          docker system prune -af
+      - name: Terraform Validate
+        run: terraform -chdir=iac/terraform validate
 
       - name: Terraform Plan
         run: terraform -chdir=iac/terraform plan
-
-      - name: Terraform Apply
-        run: terraform -chdir=iac/terraform apply -auto-approve
