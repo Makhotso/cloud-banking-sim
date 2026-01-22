@@ -2,3 +2,4 @@ fastapi
 uvicorn
 pymongo
 minio
+prometheus-fastapi-instrumentator
