@@ -1,37 +1,130 @@
+# -------------------------
+# Docker Compose for Cloud Banking Simulation
+# -------------------------
+# Services: MongoDB, MinIO, FastAPI, Kong API Gateway
+# All services share a custom network for inter-container communication
+
 version: "3.9"
 
 services:
 
+  # -------------------------
+  # MongoDB container
+  # -------------------------
   mongodb:
     image: mongo:6
     container_name: mongodb
+    restart: always
     ports:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    networks:
+      - cloud_network
 
+  # -------------------------
+  # MinIO container
+  # -------------------------
   minio:
     image: minio/minio
     container_name: minio
+    restart: always
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9000:9000"     # MinIO API
+      - "9001:9001"     # MinIO Console
     environment:
       MINIO_ROOT_USER: admin
       MINIO_ROOT_PASSWORD: admin123
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
+    networks:
+      - cloud_network
 
+  # -------------------------
+  # FastAPI container
+  # -------------------------
   fastapi:
-    build: ./fastapi
+    build:
+      context: ./fastapi
+      dockerfile: Dockerfile
     container_name: fastapi
+    restart: always
     ports:
-      - "8000:8000"
+      - "8000:8000"       # Cloud Banking Simulation API
+    environment:
+      MONGO_URI: mongodb://mongodb:27017
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: admin
+      MINIO_SECRET_KEY: admin123
     depends_on:
       - mongodb
       - minio
+    networks:
+      - cloud_network
 
+  # -------------------------
+  # Kong API Gateway container
+  # -------------------------
+  kong:
+    image: kong:3.4
+    container_name: kong
+    restart: always
+    environment:
+      KONG_DATABASE: "off"                          # Using DB-less mode
+      KONG_DECLARATIVE_CONFIG: /usr/local/kong/kong-config.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"            # Admin API
+      KONG_PROXY_LISTEN: "0.0.0.0:8000"            # Proxy API
+    ports:
+      - "8001:8001"   # Kong Admin API
+      - "8003:8000"   # Kong Proxy (routes traffic to backend)
+    volumes:
+      - ./kong/kong-config.yml:/usr/local/kong/kong-config.yml:ro
+    depends_on:
+      - fastapi
+    networks:
+      - cloud_network
+
+  # -------------------------
+  # Prometheus container
+  # -------------------------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - cloud_network
+
+  # -------------------------
+  # Grafana container
+  # -------------------------
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    networks:
+      - cloud_network
+
+# -------------------------
+# Persistent volumes
+# -------------------------
 volumes:
   mongo_data:
   minio_data:
+
+# -------------------------
+# Docker network for inter-container communication
+# -------------------------
+networks:
+  cloud_network:
+    driver: bridge
