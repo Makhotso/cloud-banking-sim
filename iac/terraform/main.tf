@@ -10,6 +10,13 @@ terraform {
 provider "docker" {}
 
 # -------------------------
+# Docker network for inter-container communication
+# -------------------------
+resource "docker_network" "cloud_network" {
+  name = "cloud_network"
+}
+
+# -------------------------
 # MongoDB container
 # -------------------------
 resource "docker_container" "mongodb" {
@@ -21,6 +28,11 @@ resource "docker_container" "mongodb" {
   ports {
     internal = 27017
     external = 27017
+  }
+
+  # Attach container to cloud_network so other containers can resolve it by name
+  networks_advanced {
+    name = docker_network.cloud_network.name
   }
 }
 
@@ -49,6 +61,11 @@ resource "docker_container" "minio" {
     internal = 9001
     external = 9001
   }
+
+  # Attach container to cloud_network so FastAPI can reach it by hostname
+  networks_advanced {
+    name = docker_network.cloud_network.name
+  }
 }
 
 # -------------------------
@@ -65,7 +82,6 @@ resource "docker_image" "fastapi" {
 # -------------------------
 # FastAPI container
 # -------------------------
-# FastAPI container
 resource "docker_container" "fastapi" {
   name      = "fastapi"
   image     = docker_image.fastapi.image_id
@@ -93,8 +109,14 @@ resource "docker_container" "fastapi" {
     external = 8000
   }
 
+  # Ensure FastAPI starts only after MongoDB and MinIO are ready
   depends_on = [
     docker_container.mongodb,
     docker_container.minio
   ]
+
+  # Attach container to cloud_network so it can resolve MongoDB and MinIO by hostname
+  networks_advanced {
+    name = docker_network.cloud_network.name
+  }
 }
