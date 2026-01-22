@@ -1,0 +1,19 @@
+_format_version: "2.1"
+
+services:
+  - name: cloud-banking-api
+    url: http://fastapi:8000
+    routes:
+      - name: cloud-banking-route
+        paths:
+          - /api
+
+plugins:
+  - name: key-auth
+    service: cloud-banking-api
+
+consumers:
+  - username: mobile-app
+    keyauth_credentials:
+      - key: my-secure-api-key
+
